@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sleep Tracker Engine</title>
+    
+    <meta property="og:title" content="Sleep Tracker" />
+    <meta property="og:description" content="A modern, high-contrast planning workspace to optimize, structure, and track your sleep windows." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0a0b10" />
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%2300ffd5%22 opacity=%22.15%22/><circle cx=%2250%22 cy=%2250%22 r=%2225%22 fill=%22%2300ffd5%22/></svg>">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --accent: #00ffd5;
+            --accent-glow: rgba(0, 255, 213, 0.15);
+            --bg: #0a0b10;
+            --surface: #12141c;
+            --surface-hover: #181b26;
+            --text: #f3f4f6;
+            --text-muted: #6b7280;
+            --text-dim: #9ca3af;
+            --danger: #ff4a4a;   /* Vibrant alert red */
+            --success: #00ffd5;  /* Balanced neon teal/green */
+            --warning: #ff9f1c;  /* Clean high-contrast orange */
+            --easing: cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 80% 20%, rgba(0, 255, 213, 0.03), transparent 50%),
+                radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.02), transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .header-nav {
+            width: 100%;
+            max-width: 1000px;
+            padding: 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 1000px) {
+            .header-nav { padding: 24px; }
+        }
+
+        .brand-logo {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-logo span { color: var(--accent); }
+
+        .controls-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .profile-dropdown { position: relative; }
+
+        .profile-trigger {
+            background: var(--surface);
+            padding: 8px 16px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 99px;
+            cursor: pointer;
+            transition: background 0.3s var(--easing), transform 0.2s var(--easing);
+            user-select: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .profile-trigger:hover { background: var(--surface-hover); }
+        .profile-trigger:active { transform: scale(0.97); }
+
+        .profile-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 8px;
+            min-width: 180px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 500;
+            transform-origin: top right;
+        }
+
+        .profile-dropdown.open .profile-menu {
+            display: block;
+            animation: elegantFadeIn 0.25s var(--easing);
+        }
+
+        @keyframes elegantFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .profile-option {
+            padding: 10px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text-dim);
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .profile-option:hover { background: var(--surface-hover); color: var(--text); }
+        .profile-option.active { background: var(--accent-glow); color: var(--accent); }
+
+        .btn-circle {
+            background: var(--surface);
+            border: none;
+            color: var(--text-dim);
+            height: 40px;
+            width: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s var(--easing);
+        }
+
+        .btn-circle:hover { background: var(--surface-hover); color: var(--text); }
+
+        /* ── LAYOUT DEFAULTS ── */
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 1000px) {
+            .container { padding: 0 24px; }
+        }
+
+        .hero-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .metric-canvas { padding: 10px 0; }
+
+        .metric-tag {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .huge-digits {
+            font-size: clamp(3.8rem, 9vw, 6rem);
+            font-weight: 800;
+            letter-spacing: -3px;
+            color: var(--text);
+            line-height: 0.95;
+        }
+
+        .sub-timeline-tag {
+            font-size: 0.92rem;
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-top: 18px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .suggestion-box {
+            background: rgba(0, 255, 213, 0.02);
+            border-left: 3px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 0 16px 16px 0;
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .summary-strip {
+            display: flex;
+            gap: 32px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            padding-top: 24px;
+        }
+
+        .summary-node { flex: 1; }
+
+        .summary-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.5px;
+        }
+
+        /* ── INTERACTIVE WORKBAR ── */
+        .interactive-bar {
+            background: var(--surface);
+            padding: 16px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .input-bucket {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 10px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+
+        .input-bucket:focus-within { background: rgba(255,255,255,0.04); }
+
+        .input-bucket label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .datetime-inputs {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 8px;
+        }
+
+        .interactive-bar input {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 600;
+            outline: none;
+            height: 28px;
+            width: 100%;
+        }
+
+        .interactive-bar input[type="time"]::-webkit-calendar-picker-indicator,
+        .interactive-bar input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            opacity: 0.4;
+            cursor: pointer;
+        }
+
+        .btn-fluid-submit {
+            background: var(--text);
+            color: var(--bg);
+            border: none;
+            height: 48px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-fluid-submit:hover {
+            background: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        /* ── SIDE TIMELINE FLOW ── */
+        .stream-aside {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .stream-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .stream-section-block {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stream-scroll {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 440px;
+            overflow-y: auto;
+            padding-right: 4px;
+            width: 100%;
+        }
+
+        .stream-card {
+            padding: 12px 16px;
+            background: var(--surface);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            transition: transform 0.2s var(--easing), background 0.2s var(--easing);
+            width: 100%;
+        }
+
+        .stream-card:hover {
+            background: var(--surface-hover);
+            transform: translateX(2px);
+        }
+
+        .card-meta-core {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-date-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--accent);                
+            background: var(--accent-glow);     
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .card-date-badge.pending-badge {
+            color: var(--warning);
+            background: rgba(255, 159, 28, 0.15);
+        }
+
+        .card-span-details {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-dim);
+        }
+
+        @media (min-width: 901px) {
+            .card-span-details {
+                white-space: normal;
+                word-break: keep-all;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .card-span-details {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+
+        .card-metrics-end {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+        }
+
+        .card-duration-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .card-duration-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .card-delta-tag {
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Complete Quick Trigger */
+        .btn-card-action {
+            background: rgba(255,255,255,0.04);
+            border: none;
+            color: var(--text);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-card-action:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* Dynamic Status State Colors */
+        .state-deficit { color: var(--danger) !important; }
+        .state-optimal { color: var(--success) !important; }
+        .state-surplus { color: var(--warning) !important; }
+
+        .card-delete-trigger {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease, color 0.2s ease;
+        }
+
+        .stream-card:hover .card-delete-trigger { opacity: 1; }
+        .card-delete-trigger:hover { color: var(--danger); }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 6, 9, 0.85);
+            backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+
+        .modal-overlay.active { display: flex; animation: overlayFade 0.3s var(--easing); }
+        @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
+
+        .smooth-modal {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        }
+
+        .modal-input {
+            width: 100%;
+            height: 48px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            color: white;
+            padding: 0 16px;
+            font-size: 0.95rem;
+            outline: none;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions { display: flex; gap: 12px; }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; gap: 40px; padding: 0 16px; }
+            .input-row { grid-template-columns: 1fr; }
+            .card-delete-trigger { opacity: 1; }
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+    </style>
+</head>
+<body>
+
+<nav class="header-nav">
+    <div class="brand-logo">Sleep<span>.</span>tracker</div>
+    
+    <div class="controls-cluster">
+        <div class="profile-dropdown" id="profileDropdown">
+            <div class="profile-trigger" onclick="toggleDropdown()">
+                <i data-lucide="user" size="14" style="color:var(--accent)"></i>
+                <span id="activeLabel">Select Profile</span>
+                <i data-lucide="chevron-down" size="13" style="color:var(--text-muted)"></i>
+            </div>
+            <div class="profile-menu" id="profileMenu"></div>
+        </div>
+
+        <button class="btn-circle" onclick="openModal('profileModal')" title="Add Profile"><i data-lucide="plus" size="16"></i></button>
+        <button class="btn-circle" onclick="deleteCurrentProfile()" title="Delete Profile" style="color:var(--danger); opacity:0.7;"><i data-lucide="trash-2" size="14"></i></button>
+        <button class="btn-circle" onclick="exportData()" title="Backup"><i data-lucide="arrow-down-to-line" size="14"></i></button>
+        <button class="btn-circle" onclick="document.getElementById('fileImport').click()" title="Restore"><i data-lucide="arrow-up-from-line" size="14"></i></button>
+        <button class="btn-circle" onclick="openModal('jsonModal')" title="Configuration"><i data-lucide="sliders" size="14"></i></button>
+        
+        <input type="file" id="fileImport" style="display:none" onchange="importData(event)">
+    </div>
+</nav>
+
+<div class="container">
+    <main class="hero-panel">
+        <div class="metric-canvas">
+            <div class="metric-tag">Calculated Sleep Duration</div>
+            <div class="huge-digits" id="heroSleep">--h --m</div>
+            <div class="sub-timeline-tag" id="heroSub">
+                <div>Initialize or select a profile node above to track metrics.</div>
+            </div>
+        </div>
+
+        <div class="summary-strip">
+            <div class="summary-node">
+                <div class="summary-label">Your Sleep Average</div>
+                <div class="summary-value" id="statAverage">--h --m</div>
+            </div>
+            <div class="summary-node">
+                <div class="summary-label">Target Baseline Goal</div>
+                <div class="summary-value" style="color: var(--accent);">8h 00m</div>
+            </div>
+        </div>
+
+        <div class="interactive-bar">
+            <div class="input-row">
+                <div class="input-bucket">
+                    <label>Went to Bed</label>
+                    <div class="datetime-inputs">
+                        <input type="date" id="sleepDate" oninput="calculateOnTheFly()">
+                        <input type="time" id="sleepTime" oninput="calculateOnTheFly()">
+                    </div>
+                </div>
+                <div class="input-bucket">
+                    <label>Woke Up</label>
+                    <div class="datetime-inputs">
+                        <input type="date" id="wakeDate" oninput="calculateOnTheFly()">
+                        <input type="time" id="wakeTime" oninput="calculateOnTheFly()">
+                    </div>
+                </div>
+            </div>
+            <button class="btn-fluid-submit" onclick="logSleep()">Log Entry</button>
+        </div>
+    </main>
+
+    <aside class="stream-aside">
+        <div class="stream-section-block" id="pendingSection" style="display:none;">
+            <div class="stream-title" style="color: var(--warning);">Incomplete / Pending Logs</div>
+            <div id="pendingStream" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+
+        <div class="stream-section-block">
+            <div class="stream-title">Recent Sleep Logs</div>
+            <div class="stream-scroll" id="historyStream"></div>
+        </div>
+    </aside>
+</div>
+
+<div class="modal-overlay" id="profileModal">
+    <div class="smooth-modal">
+        <h3 style="margin-bottom: 20px;">Initialize Profile Node</h3>
+        <input type="text" id="profileInput" class="modal-input" placeholder="Name">
+        <div class="modal-actions">
+            <button class="btn-fluid-submit" style="background: rgba(255,255,255,0.04); color: #fff; flex: 1;" onclick="closeModal('profileModal')">Cancel</button>
+            <button class="btn-fluid-submit" style="flex: 1;" onclick="saveProfile()">Create</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="jsonModal">
+    <div class="smooth-modal" style="max-width: 550px;">
+        <h3 style="margin-bottom: 20px;">Configuration Parameters</h3>
+        <textarea id="jsonTextArea" style="width: 100%; height: 260px; background: rgba(0,0,0,0.2); color: var(--accent); border-radius: 16px; padding: 14px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px; resize: none; outline: none; font-family: monospace; font-size: 0.82rem; line-height: 1.4;"></textarea>
+        <div class="modal-actions">
+            <button class="btn-fluid-submit" style="background: rgba(255,255,255,0.04); color: #fff; flex: 1;" onclick="closeModal('jsonModal')">Dismiss</button>
+            <button class="btn-fluid-submit" style="flex: 1;" onclick="applyJson()">Apply Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    let db = {
+        profiles: {},
+        activeProfile: ""
+    };
+
+    const STORAGE_KEY = 'sleep_tracker_v2_queueing';
+    const TARGET_MINUTES = 480; // 8 Hours base tracking anchor
+
+    function setDefaultDates() {
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('sleepDate').value = todayStr;
+        document.getElementById('wakeDate').value = todayStr;
+    }
+
+    function formatTo12Hour(timeStr) {
+        if (!timeStr) return '';
+        let [hrs, mins] = timeStr.split(':').map(Number);
+        const ampm = hrs >= 12 ? 'PM' : 'AM';
+        hrs = hrs % 12;
+        hrs = hrs ? hrs : 12;
+        mins = mins < 10 ? '0' + mins : mins;
+        return `${hrs}:${mins} ${ampm}`;
+    }
+
+    function formatDisplayDateCompact(dateString) {
+        if(!dateString) return '';
+        const parts = dateString.split('-');
+        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function parseTimeUnits(totalMinutes) {
+        if (totalMinutes < 0) return "0h 00m";
+        const hrs = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        return `${hrs}h ${mins}m`;
+    }
+
+    function getDeltaProperties(durationMinutes) {
+        const diff = durationMinutes - TARGET_MINUTES;
+        const absDiff = Math.abs(diff);
+        const formatString = (diff >= 0 ? "+" : "-") + parseTimeUnits(absDiff);
+        
+        let stateClass = "state-optimal";
+        let relativeLabel = "Optimal";
+
+        if (durationMinutes < 450) { 
+            stateClass = "state-deficit";
+            relativeLabel = `${parseTimeUnits(absDiff)} under`;
+        } else if (durationMinutes > 540) { 
+            stateClass = "state-surplus";
+            relativeLabel = `${parseTimeUnits(absDiff)} over`;
+        } else {
+            relativeLabel = diff === 0 ? "Target hit" : `${parseTimeUnits(absDiff)} over`;
+        }
+
+        return { formatString, stateClass, relativeLabel };
+    }
+
+    function calculatePreciseDuration(sDate, sTime, wDate, wTime) {
+        if (!sDate || !sTime || !wDate || !wTime) return 0;
+        const start = new Date(`${sDate}T${sTime}:00`);
+        const end = new Date(`${wDate}T${wTime}:00`);
+        
+        const diffMs = end - start;
+        if (diffMs <= 0) return 0;
+        
+        return Math.floor(diffMs / 1000 / 60);
+    }
+
+    function generateSmartSuggestions(sDate, sTime, wDate, wTime, durationMinutes) {
+        if (!sTime || !wTime) return '';
+        const [sHrs, sMins] = sTime.split(':').map(Number);
+        const [wHrs, wMins] = wTime.split(':').map(Number);
+        
+        const dayDiff = Math.floor((new Date(wDate) - new Date(sDate)) / (1000 * 60 * 60 * 24));
+        const delta = getDeltaProperties(durationMinutes);
+        
+        let statusText = `Logged session: <strong class="${delta.stateClass}">${parseTimeUnits(durationMinutes)}</strong> of rest (${delta.relativeLabel}).`;
+        let suggestionText = "";
+
+        if (dayDiff >= 1 && durationMinutes > 300 && durationMinutes < 540) {
+            suggestionText = `This cross-date log successfully accounts for sleeping over a multi-day span. Because you were awake for an extended window across calendar thresholds, your deep recovery cycle debt is high. Ensure your next rest block remains anchored to structural hours.`;
+            return `<div>${statusText}</div><div class="suggestion-box">${suggestionText}</div>`;
+        }
+
+        if (durationMinutes <= 300) {
+            if (sHrs >= 4 && sHrs < 9) {
+                suggestionText = `Sleeping from ${formatTo12Hour(sTime)} to ${formatTo12Hour(wTime)} is an acute 4-5 hour crash right at sunrise. Waking up in the morning prevents an afternoon slide, but your system is heavily starved for slow-wave deep cycles. Avoid long daytime naps and target an explicit reset window like **11:30 PM – 7:30 AM** tonight to safely drop this deficit.`;
+            } else {
+                suggestionText = `A sharp ${parseTimeUnits(durationMinutes)} sleep block puts your biological baseline into survival mode. Prioritize winding down early tonight and lock in a baseline **7-8 hour target window** to safely recover cognitive focus.`;
+            }
+        }
+        else if (durationMinutes >= 630) {
+            suggestionText = `An extended ${parseTimeUnits(durationMinutes)} recovery window indicates a deep rebound from accumulated sleep debt. Pushing deep into the afternoon will delay your sleep onset mechanism tonight. Stay active in bright light now to help reset your countdown timer.`;
+        }
+        else if (durationMinutes < 420) {
+            suggestionText = `Your timing alignment is in a good baseline zone, but your total sleep volume (${parseTimeUnits(durationMinutes)}) is running too shallow. To optimize cognitive recovery without shifting your waking rhythm, target a bedtime exactly **1 to 1.5 hours earlier** tonight while preserving your normal morning wake time.`;
+        }
+        else if ((sHrs >= 4 && sHrs < 12) && (wHrs >= 12 && wHrs < 18)) {
+            suggestionText = `Turning in at ${formatTo12Hour(sTime)} forces you to sleep past sunrise, scattering your REM quality and pushing your wake-up time into the afternoon. Instead of chasing late windows, aim to pull your target schedule back toward a standard window like **12:00 AM – 8:00 AM**.`;
+        }
+        else if ((sHrs >= 1 && sHrs < 4) && (wHrs >= 6 && wHrs < 12)) {
+            suggestionText = `Waking up at ${formatTo12Hour(wTime)} keeps you reasonably connected to standard daylight architecture. To optimize sleep depth further, a gentle 1-hour advance toward **12:30 AM – 8:30 AM** would maximize recovery.`;
+        }
+        else if ((sHrs >= 21 || sHrs < 1) && (wHrs >= 5 && wHrs < 10)) {
+            suggestionText = `Excellent rhythm alignment. Restricting sleep onset to before 1:00 AM and securing a clean morning wake window anchors your biological systems perfectly. Maintain this exact frame to stabilize daily energy levels.`;
+        }
+        else {
+            suggestionText = `Consistency is the fastest route to stabilizing your focus. Lock down a fixed, predictable morning wake window across your log tracking entries to naturally pull your physical bedtime earlier over time.`;
+        }
+
+        return `
+            <div>${statusText}</div>
+            <div class="suggestion-box">${suggestionText}</div>
+        `;
+    }
+
+    function calculateOnTheFly() {
+        if (!db.activeProfile) return;
+        const sDate = document.getElementById('sleepDate').value;
+        const sTime = document.getElementById('sleepTime').value;
+        const wDate = document.getElementById('wakeDate').value;
+        const wTime = document.getElementById('wakeTime').value;
+        
+        if (!sDate || !sTime || !wDate || !wTime) return;
+
+        const duration = calculatePreciseDuration(sDate, sTime, wDate, wTime);
+        const delta = getDeltaProperties(duration);
+        
+        document.getElementById('heroSleep').className = `huge-digits ${delta.stateClass}`;
+        document.getElementById('heroSleep').innerText = parseTimeUnits(duration);
+        document.getElementById('heroSub').innerHTML = generateSmartSuggestions(sDate, sTime, wDate, wTime, duration);
+    }
+
+    function init() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) db = JSON.parse(saved);
+        setDefaultDates();
+        refreshUI();
+    }
+
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+
+    function refreshUI() {
+        const stream = document.getElementById('historyStream');
+        const pendingStream = document.getElementById('pendingStream');
+        const pendingSection = document.getElementById('pendingSection');
+        const hero = document.getElementById('heroSleep');
+        const names = Object.keys(db.profiles);
+
+        buildDropdown();
+
+        if (!db.activeProfile || names.length === 0) {
+            hero.innerText = "--h --m";
+            hero.className = "huge-digits";
+            document.getElementById('heroSub').innerHTML = '<div>No workspace initialized. Tap the <strong style="color:var(--accent)">+</strong> button above to create a profile to unlock tracking features.</div>';
+            document.getElementById('statAverage').innerText = '--h --m';
+            stream.innerHTML = '<div style="text-align:left; font-size:0.88rem; color:var(--text-muted); padding-top:10px;">Please select or add a tracking profile.</div>';
+            pendingSection.style.display = 'none';
+            return;
+        }
+
+        // Initialize missing arrays cleanly if checking historical JSON schemas
+        if (!db.profiles[db.activeProfile].logs) db.profiles[db.activeProfile].logs = [];
+        if (!db.profiles[db.activeProfile].pending) db.profiles[db.activeProfile].pending = [];
+
+        const logs = db.profiles[db.activeProfile].logs;
+        const pending = db.profiles[db.activeProfile].pending;
+
+        logs.sort((a,b) => b.timestamp - a.timestamp);
+        pending.sort((a,b) => b.timestamp - a.timestamp);
+
+        // ── RENDER PENDING QUEUE ──
+        if (pending.length > 0) {
+            pendingSection.style.display = 'block';
+            pendingStream.innerHTML = '';
+            pending.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'stream-card';
+                
+                let partialDisplay = "";
+                let cardDate = "";
+                if (p.sleep && p.sleepDate) {
+                    partialDisplay = `Bed entry saved: ${formatDisplayDateCompact(p.sleepDate)} @ ${formatTo12Hour(p.sleep)}`;
+                    cardDate = formatDisplayDateCompact(p.sleepDate);
+                } else if (p.wake && p.wakeDate) {
+                    partialDisplay = `Wake entry saved: ${formatDisplayDateCompact(p.wakeDate)} @ ${formatTo12Hour(p.wake)}`;
+                    cardDate = formatDisplayDateCompact(p.wakeDate);
+                }
+
+                item.innerHTML = `
+                    <div class="card-meta-core">
+                        <div class="card-date-badge pending-badge">${cardDate || 'PEND'}</div>
+                        <div class="card-span-details" style="color: var(--warning); font-weight:600;">${partialDisplay}</div>
+                    </div>
+                    <div class="card-metrics-end">
+                        <button class="btn-card-action" onclick="loadPendingToWorkbar(${p.id})">Complete Log</button>
+                        <button class="card-delete-trigger" onclick="handleDeletePending(event, ${p.id})" style="opacity:1;">
+                            <i data-lucide="trash" size="14"></i>
+                        </button>
+                    </div>
+                `;
+                pendingStream.appendChild(item);
+            });
+        } else {
+            pendingSection.style.display = 'none';
+        }
+
+        // ── RENDER COMPLETED HERO METRICS ──
+        const latest = logs.length ? logs[0] : null;
+        if (latest && !document.getElementById('sleepTime').value && !document.getElementById('wakeTime').value) {
+            const delta = getDeltaProperties(latest.duration);
+            hero.className = `huge-digits ${delta.stateClass}`;
+            hero.innerText = parseTimeUnits(latest.duration);
+            document.getElementById('heroSub').innerHTML = generateSmartSuggestions(latest.sleepDate, latest.sleep, latest.wakeDate, latest.wake, latest.duration);
+        } else if (!latest && !document.getElementById('sleepTime').value) {
+            hero.innerText = "--h --m";
+            hero.className = "huge-digits";
+            document.getElementById('heroSub').innerHTML = '<div>Ready. Input complete or partial sleep coordinates to populate the engine.</div>';
+        }
+
+        let totalMin = 0;
+        logs.forEach(l => { totalMin += l.duration; });
+        document.getElementById('statAverage').innerText = logs.length ? parseTimeUnits(Math.round(totalMin / logs.length)) : '--h --m';
+
+        // ── RENDER RECENT HISTORY ──
+        stream.innerHTML = '';
+        if (logs.length === 0) {
+            stream.innerHTML = '<div style="text-align:left; font-size:0.88rem; color:var(--text-muted); padding-top:10px;">No completed logs yet.</div>';
+        }
+
+        logs.forEach((l) => {
+            const item = document.createElement('div');
+            item.className = 'stream-card';
+            
+            const spanText = l.sleepDate === l.wakeDate 
+                ? `${formatTo12Hour(l.sleep)} – ${formatTo12Hour(l.wake)}`
+                : `${formatDisplayDateCompact(l.sleepDate)} (${formatTo12Hour(l.sleep)}) – ${formatDisplayDateCompact(l.wakeDate)} (${formatTo12Hour(l.wake)})`;
+
+            const delta = getDeltaProperties(l.duration);
+
+            item.innerHTML = `
+                <div class="card-meta-core">
+                    <div class="card-date-badge">${formatDisplayDateCompact(l.wakeDate)}</div>
+                    <div class="card-span-details">${spanText}</div>
+                </div>
+                <div class="card-metrics-end">
+                    <div class="card-duration-group">
+                        <span class="card-duration-value">${parseTimeUnits(l.duration)}</span>
+                        <span class="card-delta-tag ${delta.stateClass}">${delta.formatString}</span>
+                    </div>
+                    <button class="card-delete-trigger" onclick="handleDelete(event, ${l.id})">
+                        <i data-lucide="trash" size="14"></i>
+                    </button>
+                </div>
+            `;
+            stream.appendChild(item);
+        });
+        lucide.createIcons();
+    }
+
+    function loadPendingToWorkbar(id) {
+        const pending = db.profiles[db.activeProfile].pending || [];
+        const match = pending.find(p => p.id === id);
+        if (!match) return;
+
+        // Reset workspace to current date baselines first, then conditionally mount payload
+        setDefaultDates();
+        
+        if (match.sleep && match.sleepDate) {
+            document.getElementById('sleepDate').value = match.sleepDate;
+            document.getElementById('sleepTime').value = match.sleep;
+        } else {
+            document.getElementById('sleepDate').value = '';
+            document.getElementById('sleepTime').value = '';
+        }
+
+        if (match.wake && match.wakeDate) {
+            document.getElementById('wakeDate').value = match.wakeDate;
+            document.getElementById('wakeTime').value = match.wake;
+        } else {
+            document.getElementById('wakeDate').value = '';
+            document.getElementById('wakeTime').value = '';
+        }
+
+        // Clean partial queue array element, save state, recalculate dashboard context viewport
+        const idx = pending.findIndex(p => p.id === id);
+        if (idx > -1) pending.splice(idx, 1);
+        save();
+        calculateOnTheFly();
+        refreshUI();
+    }
+
+    function handleDeletePending(e, id) {
+        e.stopPropagation();
+        if (confirm("Permanently discard this incomplete queue record?")) {
+            const pending = db.profiles[db.activeProfile].pending;
+            const idx = pending.findIndex(p => p.id === id);
+            if (idx > -1) { pending.splice(idx, 1); save(); refreshUI(); }
+        }
+    }
+
+    function handleDelete(e, id) {
+        e.stopPropagation();
+        if (confirm("Remove log record permanently?")) {
+            const logs = db.profiles[db.activeProfile].logs;
+            const idx = logs.findIndex(l => l.id === id);
+            if (idx > -1) { logs.splice(idx, 1); save(); refreshUI(); }
+        }
+    }
+
+    function logSleep() {
+        if (!db.activeProfile || Object.keys(db.profiles).length === 0) {
+            alert("No profile found. Please click the '+' icon in the upper right navigation area to create a tracking profile first.");
+            return;
+        }
+
+        const sDate = document.getElementById('sleepDate').value;
+        const sTime = document.getElementById('sleepTime').value;
+        const wDate = document.getElementById('wakeDate').value;
+        const wTime = document.getElementById('wakeTime').value;
+        
+        const hasSleep = sDate && sTime;
+        const hasWake = wDate && wTime;
+
+        if (!hasSleep && !hasWake) {
+            alert("Error: Please provide at least one complete time point (Went to Bed or Woke Up) to add an entry.");
+            return;
+        }
+
+        // ── SCENARIO A: SINGLE TIME STAMP (QUEUE IT) ──
+        if (!hasSleep || !hasWake) {
+            if (!db.profiles[db.activeProfile].pending) db.profiles[db.activeProfile].pending = [];
+            
+            db.profiles[db.activeProfile].pending.push({
+                id: Date.now(),
+                timestamp: Date.now(),
+                sleepDate: hasSleep ? sDate : null,
+                sleep: hasSleep ? sTime : null,
+                wakeDate: hasWake ? wDate : null,
+                wake: hasWake ? wTime : null
+            });
+
+            save();
+            document.getElementById('sleepTime').value = '';
+            document.getElementById('wakeTime').value = '';
+            setDefaultDates();
+            refreshUI();
+            return;
+        }
+
+        // ── SCENARIO B: DUAL STAMPS DETECTED (LOG COMPLETE EXPLICIT TRANSIT) ──
+        const minutes = calculatePreciseDuration(sDate, sTime, wDate, wTime);
+        if (minutes <= 0) {
+            alert("Error: Wake time coordinate must occur after sleep time coordinate.");
+            return;
+        }
+
+        if (!db.profiles[db.activeProfile].logs) db.profiles[db.activeProfile].logs = [];
+        const epochStart = new Date(`${sDate}T${sTime}:00`).getTime();
+
+        db.profiles[db.activeProfile].logs.push({
+            id: Date.now(),
+            timestamp: epochStart,
+            sleepDate: sDate,
+            sleep: sTime,
+            wakeDate: wDate,
+            wake: wTime,
+            duration: minutes
+        });
+
+        save(); 
+        document.getElementById('sleepTime').value = '';
+        document.getElementById('wakeTime').value = '';
+        setDefaultDates();
+        refreshUI();
+    }
+
+    function saveProfile() {
+        const name = document.getElementById('profileInput').value.trim();
+        if (!name) return;
+        if (!db.profiles[name]) db.profiles[name] = { logs: [], pending: [] };
+        db.activeProfile = name;
+        save(); refreshUI(); closeModal('profileModal');
+        document.getElementById('profileInput').value = '';
+    }
+
+    function deleteCurrentProfile() {
+        if (!db.activeProfile) return;
+        if (confirm(`Delete active workspace "${db.activeProfile}"?`)) {
+            delete db.profiles[db.activeProfile];
+            db.activeProfile = Object.keys(db.profiles)[0] || "";
+            save(); refreshUI();
+        }
+    }
+
+    function toggleDropdown() { document.getElementById('profileDropdown').classList.toggle('open'); }
+    function closeDropdown() { document.getElementById('profileDropdown').classList.remove('open'); }
+
+    function buildDropdown() {
+        const menu = document.getElementById('profileMenu');
+        const label = document.getElementById('activeLabel');
+        const names = Object.keys(db.profiles).sort();
+
+        menu.innerHTML = '';
+        if (names.length === 0) {
+            label.textContent = 'Select Profile';
+            return;
+        }
+        label.textContent = db.activeProfile || "Select Profile";
+
+        names.forEach(n => {
+            const opt = document.createElement('div');
+            opt.className = 'profile-option' + (n === db.activeProfile ? ' active' : '');
+            opt.innerText = n;
+            opt.addEventListener('click', () => {
+                db.activeProfile = n;
+                save(); refreshUI(); closeDropdown();
+            });
+            menu.appendChild(opt);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#profileDropdown')) closeDropdown();
+    });
+
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+        if(id === 'jsonModal') document.getElementById('jsonTextArea').value = JSON.stringify(db, null, 4);
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function applyJson() {
+        try {
+            db = JSON.parse(document.getElementById('jsonTextArea').value);
+            save(); refreshUI(); closeModal('jsonModal');
+        } catch(e) { alert("Invalid Configuration Block"); }
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", "sleep_tracker_backup.json");
+        dl.click();
+    }
+
+    function importData(e) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            db = JSON.parse(event.target.result);
+            save(); refreshUI();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    init();
+</script>
+</body>
+</html>

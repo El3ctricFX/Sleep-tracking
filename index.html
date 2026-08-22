@@ -23,9 +23,9 @@
             --text: #f3f4f6;
             --text-muted: #6b7280;
             --text-dim: #9ca3af;
-            --danger: #ff4a4a;   /* Vibrant alert red */
-            --success: #00ffd5;  /* Balanced neon teal/green */
-            --warning: #ff9f1c;  /* Clean high-contrast orange */
+            --danger: #ff4a4a;   
+            --success: #00ffd5;  
+            --warning: #ff9f1c;  
             --easing: cubic-bezier(0.25, 1, 0.5, 1);
         }
 
@@ -156,7 +156,6 @@
 
         .btn-circle:hover { background: var(--surface-hover); color: var(--text); }
 
-        /* ── LAYOUT DEFAULTS ── */
         .container {
             width: 100%;
             max-width: 1000px;
@@ -243,7 +242,6 @@
             letter-spacing: -0.5px;
         }
 
-        /* ── INTERACTIVE WORKBAR ── */
         .interactive-bar {
             background: var(--surface);
             padding: 16px;
@@ -254,6 +252,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
+        /* Set to horizontal split for the main inputs */
         .input-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -273,6 +272,28 @@
 
         .input-bucket:focus-within { background: rgba(255,255,255,0.04); }
 
+        .btn-stamp-now {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background: rgba(0, 255, 213, 0.08);
+            border: none;
+            color: var(--accent);
+            font-size: 0.62rem;
+            font-weight: 700;
+            padding: 3px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .btn-stamp-now:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
         .input-bucket label {
             font-size: 0.68rem;
             text-transform: uppercase;
@@ -282,13 +303,16 @@
             margin-bottom: 6px;
         }
 
+        /* Flex row for inner inputs so they don't crush */
         .datetime-inputs {
-            display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
+            display: flex;
+            flex-direction: row;
             gap: 8px;
         }
 
         .interactive-bar input {
+            flex: 1;
+            min-width: 0;
             background: transparent;
             border: none;
             color: var(--text);
@@ -324,7 +348,6 @@
             box-shadow: 0 8px 20px var(--accent-glow);
         }
 
-        /* ── SIDE TIMELINE FLOW ── */
         .stream-aside {
             display: flex;
             flex-direction: column;
@@ -399,25 +422,14 @@
             background: rgba(255, 159, 28, 0.15);
         }
 
+        /* Keeps the text logs stacked vertically inside the cards */
         .card-span-details {
             font-size: 0.85rem;
             font-weight: 500;
             color: var(--text-dim);
-        }
-
-        @media (min-width: 901px) {
-            .card-span-details {
-                white-space: normal;
-                word-break: keep-all;
-            }
-        }
-
-        @media (max-width: 900px) {
-            .card-span-details {
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
         .card-metrics-end {
@@ -447,7 +459,6 @@
             white-space: nowrap;
         }
 
-        /* Complete Quick Trigger */
         .btn-card-action {
             background: rgba(255,255,255,0.04);
             border: none;
@@ -464,7 +475,6 @@
             color: var(--bg);
         }
 
-        /* Dynamic Status State Colors */
         .state-deficit { color: var(--danger) !important; }
         .state-optimal { color: var(--success) !important; }
         .state-surplus { color: var(--warning) !important; }
@@ -486,7 +496,6 @@
         .stream-card:hover .card-delete-trigger { opacity: 1; }
         .card-delete-trigger:hover { color: var(--danger); }
 
-        /* Modals */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -526,9 +535,9 @@
 
         .modal-actions { display: flex; gap: 12px; }
 
+        /* Restored mobile sizing WITHOUT breaking the side-by-side inputs */
         @media (max-width: 900px) {
             .container { grid-template-columns: 1fr; gap: 40px; padding: 0 16px; }
-            .input-row { grid-template-columns: 1fr; }
             .card-delete-trigger { opacity: 1; }
         }
 
@@ -573,29 +582,35 @@
 
         <div class="summary-strip">
             <div class="summary-node">
-                <div class="summary-label">Your Sleep Average</div>
+                <div class="summary-label">All-Time Avg</div>
                 <div class="summary-value" id="statAverage">--h --m</div>
             </div>
             <div class="summary-node">
-                <div class="summary-label">Target Baseline Goal</div>
-                <div class="summary-value" style="color: var(--accent);">8h 00m</div>
+                <div class="summary-label">7-Day Avg</div>
+                <div class="summary-value" id="stat7Day">--h --m</div>
+            </div>
+            <div class="summary-node">
+                <div class="summary-label">Streak</div>
+                <div class="summary-value" id="statStreak" style="color: var(--accent);">-- days</div>
             </div>
         </div>
 
         <div class="interactive-bar">
             <div class="input-row">
                 <div class="input-bucket">
-                    <label>Went to Bed</label>
-                    <div class="datetime-inputs">
-                        <input type="date" id="sleepDate" oninput="calculateOnTheFly()">
-                        <input type="time" id="sleepTime" oninput="calculateOnTheFly()">
-                    </div>
-                </div>
-                <div class="input-bucket">
                     <label>Woke Up</label>
+                    <button class="btn-stamp-now" onclick="stampNow('wake')">Now</button>
                     <div class="datetime-inputs">
                         <input type="date" id="wakeDate" oninput="calculateOnTheFly()">
                         <input type="time" id="wakeTime" oninput="calculateOnTheFly()">
+                    </div>
+                </div>
+                <div class="input-bucket">
+                    <label>Got in Bed</label>
+                    <button class="btn-stamp-now" onclick="stampNow('sleep')">Now</button>
+                    <div class="datetime-inputs">
+                        <input type="date" id="sleepDate" oninput="calculateOnTheFly()">
+                        <input type="time" id="sleepTime" oninput="calculateOnTheFly()">
                     </div>
                 </div>
             </div>
@@ -647,12 +662,63 @@
     };
 
     const STORAGE_KEY = 'sleep_tracker_v2_queueing';
-    const TARGET_MINUTES = 480; // 8 Hours base tracking anchor
+    const TARGET_MINUTES = 480; 
 
     function setDefaultDates() {
-        const todayStr = new Date().toISOString().split('T')[0];
-        document.getElementById('sleepDate').value = todayStr;
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const todayStr = today.toISOString().split('T')[0];
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
         document.getElementById('wakeDate').value = todayStr;
+        document.getElementById('sleepDate').value = yesterdayStr;
+    }
+
+    function stampNow(type) {
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        const dateStr = now.toISOString().split('T')[0];
+        if (type === 'wake') {
+            document.getElementById('wakeDate').value = dateStr;
+            document.getElementById('wakeTime').value = timeStr;
+        } else {
+            document.getElementById('sleepDate').value = dateStr;
+            document.getElementById('sleepTime').value = timeStr;
+        }
+        calculateOnTheFly();
+    }
+
+    function calculateStreak() {
+        if (!db.activeProfile) return 0;
+        const logs = db.profiles[db.activeProfile].logs || [];
+        if (!logs.length) return 0;
+
+        const wakeDates = [...new Set(logs.map(l => l.wakeDate))].sort().reverse();
+        if (!wakeDates.length) return 0;
+
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+        if (wakeDates[0] !== today && wakeDates[0] !== yesterday) return 0;
+
+        let streak = 1;
+        for (let i = 1; i < wakeDates.length; i++) {
+            const prev = new Date(wakeDates[i - 1] + 'T12:00:00');
+            const curr = new Date(wakeDates[i] + 'T12:00:00');
+            const diff = Math.round((prev - curr) / (1000 * 60 * 60 * 24));
+            if (diff === 1) streak++;
+            else break;
+        }
+        return streak;
+    }
+
+    function calculateWeeklyAverage() {
+        if (!db.activeProfile) return 0;
+        const logs = db.profiles[db.activeProfile].logs || [];
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const recent = logs.filter(l => l.timestamp >= sevenDaysAgo);
+        if (!recent.length) return 0;
+        return Math.round(recent.reduce((s, l) => s + l.duration, 0) / recent.length);
     }
 
     function formatTo12Hour(timeStr) {
@@ -799,12 +865,13 @@
             hero.className = "huge-digits";
             document.getElementById('heroSub').innerHTML = '<div>No workspace initialized. Tap the <strong style="color:var(--accent)">+</strong> button above to create a profile to unlock tracking features.</div>';
             document.getElementById('statAverage').innerText = '--h --m';
+            document.getElementById('stat7Day').innerText = '--h --m';
+            document.getElementById('statStreak').innerText = '--';
             stream.innerHTML = '<div style="text-align:left; font-size:0.88rem; color:var(--text-muted); padding-top:10px;">Please select or add a tracking profile.</div>';
             pendingSection.style.display = 'none';
             return;
         }
 
-        // Initialize missing arrays cleanly if checking historical JSON schemas
         if (!db.profiles[db.activeProfile].logs) db.profiles[db.activeProfile].logs = [];
         if (!db.profiles[db.activeProfile].pending) db.profiles[db.activeProfile].pending = [];
 
@@ -814,7 +881,6 @@
         logs.sort((a,b) => b.timestamp - a.timestamp);
         pending.sort((a,b) => b.timestamp - a.timestamp);
 
-        // ── RENDER PENDING QUEUE ──
         if (pending.length > 0) {
             pendingSection.style.display = 'block';
             pendingStream.innerHTML = '';
@@ -824,12 +890,12 @@
                 
                 let partialDisplay = "";
                 let cardDate = "";
-                if (p.sleep && p.sleepDate) {
-                    partialDisplay = `Bed entry saved: ${formatDisplayDateCompact(p.sleepDate)} @ ${formatTo12Hour(p.sleep)}`;
-                    cardDate = formatDisplayDateCompact(p.sleepDate);
-                } else if (p.wake && p.wakeDate) {
-                    partialDisplay = `Wake entry saved: ${formatDisplayDateCompact(p.wakeDate)} @ ${formatTo12Hour(p.wake)}`;
+                if (p.wake && p.wakeDate) {
+                    partialDisplay = `Wake time saved: ${formatDisplayDateCompact(p.wakeDate)} @ ${formatTo12Hour(p.wake)}`;
                     cardDate = formatDisplayDateCompact(p.wakeDate);
+                } else if (p.sleep && p.sleepDate) {
+                    partialDisplay = `Bed time saved: ${formatDisplayDateCompact(p.sleepDate)} @ ${formatTo12Hour(p.sleep)}`;
+                    cardDate = formatDisplayDateCompact(p.sleepDate);
                 }
 
                 item.innerHTML = `
@@ -850,7 +916,6 @@
             pendingSection.style.display = 'none';
         }
 
-        // ── RENDER COMPLETED HERO METRICS ──
         const latest = logs.length ? logs[0] : null;
         if (latest && !document.getElementById('sleepTime').value && !document.getElementById('wakeTime').value) {
             const delta = getDeltaProperties(latest.duration);
@@ -866,8 +931,11 @@
         let totalMin = 0;
         logs.forEach(l => { totalMin += l.duration; });
         document.getElementById('statAverage').innerText = logs.length ? parseTimeUnits(Math.round(totalMin / logs.length)) : '--h --m';
+        const weekly = calculateWeeklyAverage();
+        document.getElementById('stat7Day').innerText = weekly ? parseTimeUnits(weekly) : '--h --m';
+        const streak = calculateStreak();
+        document.getElementById('statStreak').innerText = streak ? `${streak} day${streak !== 1 ? 's' : ''}` : '--';
 
-        // ── RENDER RECENT HISTORY ──
         stream.innerHTML = '';
         if (logs.length === 0) {
             stream.innerHTML = '<div style="text-align:left; font-size:0.88rem; color:var(--text-muted); padding-top:10px;">No completed logs yet.</div>';
@@ -877,9 +945,11 @@
             const item = document.createElement('div');
             item.className = 'stream-card';
             
-            const spanText = l.sleepDate === l.wakeDate 
-                ? `${formatTo12Hour(l.sleep)} – ${formatTo12Hour(l.wake)}`
-                : `${formatDisplayDateCompact(l.sleepDate)} (${formatTo12Hour(l.sleep)}) – ${formatDisplayDateCompact(l.wakeDate)} (${formatTo12Hour(l.wake)})`;
+            const lbl = t => `<span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);font-weight:700;margin-right:5px;">${t}</span>`;
+            const crossDay = l.sleepDate !== l.wakeDate;
+            const wakeStr = `${lbl('Wake Up:')}${crossDay ? formatDisplayDateCompact(l.wakeDate) + ' ' : ''}${formatTo12Hour(l.wake)}`;
+            const bedStr  = `${lbl('Bed Time:')}${crossDay ? formatDisplayDateCompact(l.sleepDate) + ' ' : ''}${formatTo12Hour(l.sleep)}`;
+            const spanText = `<div>${wakeStr}</div><div>${bedStr}</div>`;
 
             const delta = getDeltaProperties(l.duration);
 
@@ -908,7 +978,6 @@
         const match = pending.find(p => p.id === id);
         if (!match) return;
 
-        // Reset workspace to current date baselines first, then conditionally mount payload
         setDefaultDates();
         
         if (match.sleep && match.sleepDate) {
@@ -927,7 +996,6 @@
             document.getElementById('wakeTime').value = '';
         }
 
-        // Clean partial queue array element, save state, recalculate dashboard context viewport
         const idx = pending.findIndex(p => p.id === id);
         if (idx > -1) pending.splice(idx, 1);
         save();
@@ -972,7 +1040,6 @@
             return;
         }
 
-        // ── SCENARIO A: SINGLE TIME STAMP (QUEUE IT) ──
         if (!hasSleep || !hasWake) {
             if (!db.profiles[db.activeProfile].pending) db.profiles[db.activeProfile].pending = [];
             
@@ -993,7 +1060,6 @@
             return;
         }
 
-        // ── SCENARIO B: DUAL STAMPS DETECTED (LOG COMPLETE EXPLICIT TRANSIT) ──
         const minutes = calculatePreciseDuration(sDate, sTime, wDate, wTime);
         if (minutes <= 0) {
             alert("Error: Wake time coordinate must occur after sleep time coordinate.");
